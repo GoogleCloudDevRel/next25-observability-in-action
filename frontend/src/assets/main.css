@@ -1,0 +1,44 @@
+body {
+  background-color: #222;
+  color: #ddd;
+  font-family: "Menlo", monospace;
+  font-size: 28px;
+  text-align: center;
+}
+
+header {
+  margin-top: 200px;
+  margin-bottom: 250px;
+}
+
+button {
+  width: 150px;
+  height: 150px;
+  margin: 10px;
+  font-size: 0.6em;
+  background-color: #fff;
+  border: 5px solid #11b922;
+  border-radius: 20px;
+}
+
+button:disabled {
+  color: #000;
+  border-color: #000;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+input {
+  font-size: 0.6em;
+  padding: 15px;
+  border-radius: 10px;
+  width: 500px;
+}
+
+#prompt {
+  color: grey;
+}

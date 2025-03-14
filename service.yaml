@@ -1,0 +1,42 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+  name: "quiz"
+spec:
+  template:
+    metadata:
+      annotations:
+        run.googleapis.com/container-dependencies: '{"app":["collector"]}'
+    spec:
+      containers:
+        - image: "YOUR_BACKEND_IMAGE_HERE"
+          name: app
+          ports:
+            - containerPort: 8080
+          env:
+            - name: "OTEL_EXPORTER_OTLP_ENDPOINT"
+              value: "http://localhost:4317"
+          volumeMounts:
+            - mountPath: /logging
+              name: shared-logs
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            failureThreshold: 3
+        - image: "YOUR_COLLECTOR_IMAGE_HERE"
+          name: collector
+          ports:
+          startupProbe:
+            httpGet:
+              path: /
+              port: 13133
+          volumeMounts:
+            - mountPath: /logging
+              name: shared-logs
+      volumes:
+        - name: shared-logs
+          emptyDir:
+            medium: Memory
+            sizeLimit: 512Mi

@@ -1,0 +1,13 @@
+gunicorn
+flask
+structlog
+google-cloud-firestore
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-exporter-gcp-trace
+opentelemetry-exporter-gcp-monitoring
+opentelemetry-instrumentation-flask
+opentelemetry-exporter-otlp-proto-grpc
+langchain
+langchain-google-vertexai
+langchain-openai

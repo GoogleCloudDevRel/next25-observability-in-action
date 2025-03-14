@@ -1,0 +1,61 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    # batch metrics before sending to reduce API usage
+    send_batch_max_size: 200
+    send_batch_size: 200
+    timeout: 5s
+
+  memory_limiter:
+    # drop metrics if memory usage gets too high
+    check_interval: 1s
+    limit_percentage: 65
+    spike_limit_percentage: 20
+
+  resourcedetection:
+    detectors: [env, gcp]
+    timeout: 2s
+    override: false
+
+  resource:
+    attributes:
+      # Add the service name.
+      - key: service.name
+        value: ${env:K_SERVICE}
+        action: upsert
+
+
+exporters:
+  debug:
+    verbosity: detailed
+  googlecloud:
+    log:
+      default_log_name: o11ydemo-app
+  googlemanagedprometheus:
+
+extensions:
+  health_check:
+    endpoint: "0.0.0.0:13133"
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resourcedetection, resource]
+      exporters: [googlecloud]
+    # logs:
+    #   receivers: [otlp]
+    #   processors: [resourcedetection]
+    #   exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch, memory_limiter, resourcedetection, resource]
+      exporters: [googlemanagedprometheus]
