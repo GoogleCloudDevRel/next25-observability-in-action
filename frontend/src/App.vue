@@ -4,17 +4,17 @@ import { constants } from "@/utils/utils";
 </script>
 
 <template>
-  <header>
+  <!-- <header>
     <h1>{{ constants.demoTitle }}</h1>
     <h2>{{ constants.demoSubtitle }}</h2>
-  </header>
+  </header> -->
   
   <RouterView />
 </template>
 
 <style scoped>
-body {
+/* body {
   background-color: white;
   color: black;
-}
+} */
 </style>

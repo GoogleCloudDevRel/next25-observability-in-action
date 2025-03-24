@@ -12,9 +12,9 @@ var mockQuestions = [
         id: 0,
         question: "What is 1+1?",
         options: [
-            "2",
-            "3",
-            "4"
+            "Gemma on Cloud Run",
+            "Gemini 2.0 Flash on VertexAI",
+            "Gemini 2.0 Flash-lite on VertexAI"
         ],
         answer: "2"
     },
@@ -22,9 +22,9 @@ var mockQuestions = [
         id: 2,
         question: "What is 2+2?",
         options: [
-            "4",
-            "5",
-            "6"
+            "Gemma on Cloud Run",
+            "Gemini 2.0 Flash on VertexAI",
+            "Gemini 2.0 Flash-lite on VertexAI"
         ],
         answer: "4"
     },
@@ -32,9 +32,9 @@ var mockQuestions = [
         id: 3,
         question: "What is 3+3?",
         options: [
-            "6",
-            "7",
-            "8"
+            "Gemma on Cloud Run",
+            "Gemini 2.0 Flash on VertexAI",
+            "Gemini 2.0 Flash-lite on VertexAI"
         ],
         answer: "6"
     }
