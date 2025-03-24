@@ -6,7 +6,7 @@ import { constants, setPrompt } from "@/utils/utils";
 const router = useRouter()
 
 function submit() {
-  router.push("/prompt")
+  router.push("/instructions")
 }
 
 let handlerEnter: any;
@@ -27,9 +27,14 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main>
+  <video class="bg-video" autoplay loop muted playsinline>
+    <source src="/vid_splash.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <!-- <main id="screen-splash"> -->
+    <!-- splash
     <p class="buttons">
       <button @click="submit()">ENTER<br>to begin</button>
-    </p>
-  </main>
+    </p> -->
+  <!-- </main> -->
 </template>

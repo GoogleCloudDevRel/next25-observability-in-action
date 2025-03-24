@@ -10,19 +10,24 @@ const router = createRouter({
       component: SplashView,
     },
     {
+      path: '/instructions',
+      name: 'instructions',
+      component: () => import('../views/2_InstructionsView.vue'),
+    },
+    {
       path: '/prompt',
       name: 'prompt',
-      component: () => import('../views/2_PromptView.vue'),
+      component: () => import('../views/3_PromptView.vue'),
     },
     {
       path: '/question',
       name: 'question',
-      component: () => import('../views/3_QuestionView.vue'),
+      component: () => import('../views/4_QuestionView.vue'),
     },
     {
       path: '/model',
       name: 'model',
-      component: () => import('../views/4_ModelView.vue'),
+      component: () => import('../views/5_ModelView.vue'),
     },
   ],
 })
