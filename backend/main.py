@@ -6,6 +6,7 @@ import json
 
 
 from quart import Quart, request, jsonify
+from quart_cors import cors
 from google.cloud import firestore
 import google.auth.transport.requests
 import google.oauth2.id_token
@@ -29,6 +30,7 @@ import models
 logger = getJSONLogger()
 
 app = Quart(__name__)
+app = cors(app, allow_origin="*")
 app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
 
 PROJECT=os.getenv("GOOGLE_CLOUD_PROJECT")
