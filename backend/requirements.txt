@@ -1,5 +1,6 @@
 gunicorn
 flask
+flask-cors
 structlog
 google-cloud-firestore
 opentelemetry-api

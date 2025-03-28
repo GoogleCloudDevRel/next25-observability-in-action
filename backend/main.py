@@ -3,6 +3,7 @@ import random
 import datetime
 
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from google.cloud import firestore
 
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
@@ -23,6 +24,7 @@ import models
 logger = getJSONLogger()
 
 app = Flask(__name__)
+CORS(app)
 FlaskInstrumentor().instrument_app(app)
 
 PROJECT=os.getenv("GOOGLE_CLOUD_PROJECT")
