@@ -1,5 +1,6 @@
 gunicorn
 flask
+quart
 structlog
 google-cloud-firestore
 opentelemetry-api
@@ -11,3 +12,6 @@ opentelemetry-exporter-otlp-proto-grpc
 langchain
 langchain-google-vertexai
 langchain-openai
+opentelemetry-instrumentation-asgi
+uvicorn
+quart-cors

@@ -17,6 +17,8 @@ spec:
           env:
             - name: "OTEL_EXPORTER_OTLP_ENDPOINT"
               value: "http://localhost:4317"
+            - name: "GEMMA_ENDPOINT"
+              value: "YOUR_GEMMA_ENDPOINT_HERE"
           volumeMounts:
             - mountPath: /logging
               name: shared-logs

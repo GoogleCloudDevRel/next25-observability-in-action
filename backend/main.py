@@ -1,11 +1,17 @@
 import os
 import random
 import datetime
+import requests
+import json
 
-from flask import Flask, request, jsonify
+
+from quart import Quart, request, jsonify
 from google.cloud import firestore
+import google.auth.transport.requests
+import google.oauth2.id_token
 
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.sampling import ALWAYS_ON
@@ -22,13 +28,14 @@ import models
 
 logger = getJSONLogger()
 
-app = Flask(__name__)
-FlaskInstrumentor().instrument_app(app)
+app = Quart(__name__)
+app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
 
 PROJECT=os.getenv("GOOGLE_CLOUD_PROJECT")
+GEMMA_ENDPOINT=os.getenv("GEMMA_ENDPOINT")
 LLM_BACKENDS = {
   "gemini-flash": models.getGemini(PROJECT, model="gemini-2.0-flash"),
-  "gemini-flash-lite": models.getGemini(PROJECT, model="gemini-2.0-flash-lite"),
+  "gemini-flash-lite": models.getGemini(PROJECT, model="gemini-2.0-flash-lite")
 }
 
 fclient = firestore.Client(
@@ -113,22 +120,65 @@ def score_question(qid):
   return jsonify({"correct": got == want,
                   "right_answer": want })
 
-@app.route("/prompt/<model>")
-def call_llm(model):
+@app.route("/prompt", methods=['POST'])
+async def call_llm():
   prompt = request.args.get("prompt")
-  if model not in LLM_BACKENDS:
-    return f"unknown model requested: {model}", 400
+  session_id = request.args.get("sid")
+
+  # print (prompt)
+  # print (session_id)
+  
+  for llm_key in LLM_BACKENDS:
+     await call_gemini(prompt, llm_key, session_id)
+  await call_gemma(prompt, session_id)
+  return jsonify({"content": f"prompts processed for {session_id}"})
+
+async def call_gemini(prompt,model,sid):
   llm = LLM_BACKENDS[model]
-  with tracer.start_as_current_span("calling llm") as span:
+  resp = ""
+  with tracer.start_as_current_span(f"calling {model}") as span:
     span.set_attribute(key="model", value=model)
     starttime = datetime.datetime.now()
     resp = llm.invoke(prompt)
     stoptime = datetime.datetime.now()
     llmlatency = (stoptime - starttime) / datetime.timedelta(milliseconds=1)
-    logger.info("LLM called", model=model, latency=llmlatency, prompt=prompt)
+    logger.info("LLM called", model=model, latency=llmlatency, prompt=prompt, session_id=sid)
     llm_histogram.record(llmlatency, attributes={'model': model})
     llm_count.add(1, attributes={'model': model})
-  return jsonify({"content": resp.content})
+  return resp
+
+
+async def call_gemma(prompt,sid):
+  url = f'{GEMMA_ENDPOINT}/api/generate'
+  data = {
+      "model": "gemma3:1b",
+      "prompt": prompt
+  }
+  model = "Gemma"
+  auth_req = google.auth.transport.requests.Request()
+  id_token = google.oauth2.id_token.fetch_id_token(auth_req, url)
+
+
+  headers = {
+    'Content-Type': 'application/json',
+    'Authorization': f"Bearer {id_token}"
+  }
+  response = ""
+  with tracer.start_as_current_span(f"calling {model}") as span:
+    span.set_attribute(key="model", value=model)
+    starttime = datetime.datetime.now()
+    try:
+      response = requests.post(url, data=json.dumps(data), headers=headers) # Use json.dumps to convert the dictionary to a JSON string
+    except: 
+      pass
+    #print (response.text)
+    stoptime = datetime.datetime.now()
+    llmlatency = (stoptime - starttime) / datetime.timedelta(milliseconds=1)
+    logger.info("LLM called", model=model, latency=llmlatency, prompt=prompt, session_id=sid)
+    llm_histogram.record(llmlatency, attributes={'model': model})
+    llm_count.add(1, attributes={'model': model})
+  return response
+
 
 @app.route("/llmz")
 def debug_list_backends():
