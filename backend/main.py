@@ -3,13 +3,17 @@ import random
 import datetime
 import requests
 import json
-
+import asyncio
 
 from quart import Quart, request, jsonify
 from quart_cors import cors
 from google.cloud import firestore
 import google.auth.transport.requests
 import google.oauth2.id_token
+from concurrent import futures
+from google.cloud import pubsub_v1
+from typing import Callable
+
 
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
@@ -44,6 +48,35 @@ fclient = firestore.Client(
   project=PROJECT,
   database="o11ydemo",
 )
+
+publisher = pubsub_v1.PublisherClient()
+topic_name = f'projects/{PROJECT}/topics/logPromptsAndResponses'
+
+
+player_questions = {} 
+
+def get_random_document_keys(collection_name, num_keys=3):
+    """
+    Retrieves a specified number of random document keys from a Firestore collection.
+
+    Args:
+        collection_name: The name of the Firestore collection.
+        num_keys: The number of random keys to retrieve (default is 3).
+
+    Returns:
+        A list containing the randomly selected document keys, or an empty list if the collection is empty or an error occurs.
+    """
+
+    collection_ref = fclient.collection(collection_name)
+    all_document_ids = [doc.id for doc in collection_ref.stream()]
+
+    if not all_document_ids:
+        return []
+
+    num_keys = min(num_keys, len(all_document_ids))
+    random_keys = random.sample(all_document_ids, num_keys)
+
+    return random_keys
 
 
 def setup_otel(project):
@@ -112,9 +145,17 @@ def docref_for_output(docref):
   rv['id'] = docref.id
   return jsonify(rv)
 
-@app.route("/question/<qid>", methods=['POST'])
-def score_question(qid):
-  got = request.args.get("answer", None)
+def publish(message):
+  message_string = json.dumps(message)
+  future = publisher.publish(topic_name, data=message_string.encode('UTF-8'))
+  message_id = future.result()  # This will block until the message is published
+  return message_id
+
+@app.route("/answer", methods=['POST'])
+def score_question():
+  got = request.args.get("answercode", None)
+  qid = request.args.get("qid", None)
+  sid = request.args.get("sid", None)
   dr = fclient.collection('questions').document(qid)
   want = dr.get().get("answer")
   logger.info("scoring question", qid=dr.id, correct=(got == want))
@@ -127,12 +168,11 @@ async def call_llm():
   prompt = request.args.get("prompt")
   session_id = request.args.get("sid")
 
-  # print (prompt)
-  # print (session_id)
-  
+  player_questions[session_id] = get_random_document_keys("questions",3)
+
   for llm_key in LLM_BACKENDS:
-     await call_gemini(prompt, llm_key, session_id)
-  await call_gemma(prompt, session_id)
+     asyncio.create_task(call_gemini(prompt, llm_key, session_id))
+  asyncio.create_task(call_gemma(prompt, session_id))
   return jsonify({"content": f"prompts processed for {session_id}"})
 
 async def call_gemini(prompt,model,sid):
@@ -144,9 +184,17 @@ async def call_gemini(prompt,model,sid):
     resp = llm.invoke(prompt)
     stoptime = datetime.datetime.now()
     llmlatency = (stoptime - starttime) / datetime.timedelta(milliseconds=1)
-    logger.info("LLM called", model=model, latency=llmlatency, prompt=prompt, session_id=sid)
+    logger.info("LLM called", model=model, latency=llmlatency, session_id=sid)
     llm_histogram.record(llmlatency, attributes={'model': model})
     llm_count.add(1, attributes={'model': model})
+  message_dict = {
+    "session_id":sid,
+    "model": model,
+    "prompt": prompt,
+    "response": str(resp.text)
+  }
+  publish(message_dict)
+  logger.info("LLM responded", model=model, session_id=sid)
   return resp
 
 
@@ -156,7 +204,7 @@ async def call_gemma(prompt,sid):
       "model": "gemma3:1b",
       "prompt": prompt
   }
-  model = "Gemma"
+  model = "Gemma3"
   auth_req = google.auth.transport.requests.Request()
   id_token = google.oauth2.id_token.fetch_id_token(auth_req, url)
 
@@ -165,21 +213,28 @@ async def call_gemma(prompt,sid):
     'Content-Type': 'application/json',
     'Authorization': f"Bearer {id_token}"
   }
-  response = ""
+  resp = ""
   with tracer.start_as_current_span(f"calling {model}") as span:
     span.set_attribute(key="model", value=model)
     starttime = datetime.datetime.now()
     try:
-      response = requests.post(url, data=json.dumps(data), headers=headers) # Use json.dumps to convert the dictionary to a JSON string
+      resp = requests.post(url, data=json.dumps(data), headers=headers) # Use json.dumps to convert the dictionary to a JSON string
     except: 
       pass
-    #print (response.text)
     stoptime = datetime.datetime.now()
     llmlatency = (stoptime - starttime) / datetime.timedelta(milliseconds=1)
-    logger.info("LLM called", model=model, latency=llmlatency, prompt=prompt, session_id=sid)
+    logger.info("LLM called", model=model, latency=llmlatency, session_id=sid)
     llm_histogram.record(llmlatency, attributes={'model': model})
     llm_count.add(1, attributes={'model': model})
-  return response
+  message_dict = {
+    "session_id":sid,
+    "model": model,
+    "prompt": prompt,
+    "response": str(resp.text)
+  }
+  publish(message_dict)
+  logger.info("LLM responded", model=model, session_id=sid)
+  return resp
 
 
 @app.route("/llmz")

@@ -24,5 +24,6 @@ collector_image=$(gcloud --project ${project} artifacts docker images describe $
 # 'latest' tag, and the deploy sometimes misses updates to the image.
 cat service.yaml | sed -e "s#YOUR_BACKEND_IMAGE_HERE#${backend_image}#g" \
   -e "s#YOUR_COLLECTOR_IMAGE_HERE#${collector_image}#g" \
-  -e "s#YOUR_GEMMA_ENDPOINT_HERE#${gemma_endpoint}#g" > edited-service.yaml
+  -e "s#YOUR_GEMMA_ENDPOINT_HERE#${gemma_endpoint}#g" \
+  -e "s#YOUR_GOOGLE_CLOUD_PROJECT_HERE#${project}#g" > edited-service.yaml 
 gcloud --project ${project} run services replace edited-service.yaml --region ${region}
