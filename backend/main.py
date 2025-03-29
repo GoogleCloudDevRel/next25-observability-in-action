@@ -51,9 +51,11 @@ fclient = firestore.Client(
 
 publisher = pubsub_v1.PublisherClient()
 topic_name = f'projects/{PROJECT}/topics/logPromptsAndResponses'
-
+collection_ref = fclient.collection("questions")
+all_document_ids = [doc.id for doc in collection_ref.stream()]
 
 player_questions = {} 
+player_prompts = {}
 
 def get_random_document_keys(collection_name, num_keys=3):
     """
@@ -66,12 +68,6 @@ def get_random_document_keys(collection_name, num_keys=3):
     Returns:
         A list containing the randomly selected document keys, or an empty list if the collection is empty or an error occurs.
     """
-
-    collection_ref = fclient.collection(collection_name)
-    all_document_ids = [doc.id for doc in collection_ref.stream()]
-
-    if not all_document_ids:
-        return []
 
     num_keys = min(num_keys, len(all_document_ids))
     random_keys = random.sample(all_document_ids, num_keys)
@@ -115,19 +111,19 @@ def health():
 @app.route("/question")
 def random_q():
   starttime = datetime.datetime.now()
-  c = fclient.collection('questions')
-  doclist = []
-  for d in c.list_documents():
-    doclist.append(d)
-    
-  i = random.randint(0, len(doclist)-1)
-  r = doclist[i]
-  stoptime = datetime.datetime.now()
-  latency = (stoptime - starttime) / datetime.timedelta(milliseconds=1)
-  question_latency.record(latency, attributes={'qid': r.id})
-  logger.info("asking question", qid=r.id, latency=latency)
-  q_counter.add(1)
-  return docref_for_output(r)
+  session_id = str(request.args.get("sid"))
+  specific_questions = player_questions[session_id]
+  if len(specific_questions) > 0:
+    qid = specific_questions.pop()
+    doc_ref = fclient.collection('questions').document(qid)
+    stoptime = datetime.datetime.now()
+    latency = (stoptime - starttime) / datetime.timedelta(milliseconds=1)
+    question_latency.record(latency, attributes={'qid': doc_ref.id})
+    logger.info("asking question", qid=doc_ref.id, latency=latency)
+    return docref_for_output(doc_ref)
+  return jsonify ({
+    "response": "Congrats you broke it"
+  })
 
 @app.route("/question/<qid>", methods=['GET'])
 def get_question(qid):
@@ -151,13 +147,35 @@ def publish(message):
   message_id = future.result()  # This will block until the message is published
   return message_id
 
+@app.route("/final",methods=['GET'])
+def get_final():
+  sid = str(request.args.get("sid", None))
+  answer = "FLASH"
+  prompt = f"How did you get here?! There was no prompt submitted for this {sid}, welps the answer is FLASH but it's hardcoded, good job you broke it."
+  condition = "Nothing ran, congrats, you broke it"
+  if sid in player_prompts:
+    prompt = player_prompts[sid]
+
+  return jsonify(
+    {
+      "prompt": prompt,
+      "condition": condition,
+      "answer": answer
+    }
+  )
+
+
 @app.route("/answer", methods=['POST'])
 def score_question():
-  got = request.args.get("answercode", None)
+  local_fclient = firestore.Client(
+    project=PROJECT,
+    database="o11ydemo",
+  )
+  got = request.args.get("answer", None)
   qid = request.args.get("qid", None)
-  sid = request.args.get("sid", None)
-  dr = fclient.collection('questions').document(qid)
-  want = dr.get().get("answer")
+  sid = str(request.args.get("sid", None))
+  dr = local_fclient.collection('questions').document(qid)
+  want = dr.get().get("code")
   logger.info("scoring question", qid=dr.id, correct=(got == want))
   answer_counter.add(1, attributes={'correct': (got == want), 'qid': dr.id})
   return jsonify({"correct": got == want,
@@ -166,14 +184,20 @@ def score_question():
 @app.route("/prompt", methods=['POST'])
 async def call_llm():
   prompt = request.args.get("prompt")
-  session_id = request.args.get("sid")
-
+  session_id = str(request.args.get("sid"))
   player_questions[session_id] = get_random_document_keys("questions",3)
+  player_prompts[session_id] = prompt
+  verbose_player_question = []
+  for question in player_questions[session_id]:
+    doc_ref = fclient.collection('questions').document(question)
+    question_dict = doc_ref.get().to_dict()
+    question_dict["qid"] = question
+    verbose_player_question.append(question_dict)
 
   for llm_key in LLM_BACKENDS:
      asyncio.create_task(call_gemini(prompt, llm_key, session_id))
   asyncio.create_task(call_gemma(prompt, session_id))
-  return jsonify({"content": f"prompts processed for {session_id}"})
+  return jsonify({"player_questions": verbose_player_question})
 
 async def call_gemini(prompt,model,sid):
   llm = LLM_BACKENDS[model]
@@ -214,6 +238,7 @@ async def call_gemma(prompt,sid):
     'Authorization': f"Bearer {id_token}"
   }
   resp = ""
+
   with tracer.start_as_current_span(f"calling {model}") as span:
     span.set_attribute(key="model", value=model)
     starttime = datetime.datetime.now()
