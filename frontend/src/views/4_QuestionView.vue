@@ -5,9 +5,11 @@ import { constants, getQuestion, postResponse } from "@/utils/utils";
 
 var router = useRouter()
 
+const showTransition = ref(true);
 var totalQuestions = constants.numQuestions
 var currentQuestionNumber = ref(1)
-var question = ref(getQuestion())
+var question = ref(null)
+question.value = getQuestion();
 
 var selection = ref(0)
 
@@ -17,6 +19,9 @@ const colorMap: { [key: string]: string } = {
   "3": "green"
 };
 
+const possibleAnswers = ["Gemma on Cloud Run", "Gemini 2.0 Flash on VertexAI", "Gemini 2.0 Flash-lite on VertexAI"]
+const possibleCodes = ["GEMMA3", "FLASH", "FLASHLITE"]
+
 function currentColor() {
   return colorMap[String(currentQuestionNumber.value)]
 }
@@ -25,16 +30,20 @@ function reset() {
   router.push("/")
 }
 
-function submitResponse() {
-  postResponse(question.value.id, "response")
+async function submitResponse() {
+  postResponse(question.value.qid, possibleCodes[selection.value-1])
   
+  if (currentQuestionNumber.value == totalQuestions) {
+    setTimeout(() => {
+      router.push("/model")
+    }, 500);
+    
+    return
+  }
+
   selection.value = 0
   currentQuestionNumber.value++
-  question.value = getQuestion()
-
-  if (currentQuestionNumber.value > totalQuestions) {
-    router.push("/model")
-  }
+  question.value = await getQuestion();
 }
 
 let handlerEnter: any;
@@ -42,9 +51,9 @@ let handlerOne: any;
 let handlerTwo: any;
 let handlerThree: any;
 onMounted(() => {
-  handlerEnter = (e: any) => {
+  handlerEnter = async (e: any) => {
     if (e.key === 'Enter' && selection.value !== 0) {
-      submitResponse()
+      await submitResponse()
     }
   };
   window.addEventListener('keypress', handlerEnter);
@@ -66,6 +75,10 @@ onMounted(() => {
     }
   };
   window.addEventListener('keypress', handlerThree);
+
+  setTimeout(() => {
+    showTransition.value = false;
+  }, 1000);
 });
 
 onBeforeUnmount(() => {
@@ -85,16 +98,24 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <button id="reset-button" class="btn" :class="currentColor()" @click="reset()">Reset</button>
-  <main :id="'screen-' + currentColor()">
-    <div>
-      <h1 :class="currentColor()">Question {{ currentQuestionNumber }}</h1>
-      <h3>{{ question.question }}</h3>
-      <p class="buttons">
-        <template v-for="(option, index) in question.options">
-          <button :class="currentColor()" @click="submitResponse()" :disabled="selection !== index+1">{{ option }}</button>
-        </template>
-      </p>
-    </div>
-  </main>
+  <video v-if="showTransition" class="bg-video" autoplay loop muted playsinline>
+    <source src="/transition.mp4#t=1" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <template v-else>
+    <button id="reset-button" class="btn" :class="currentColor()" @click="reset()">Reset</button>
+    <main :id="'screen-' + currentColor()">
+      <div>
+        <h1 :class="currentColor()">Question {{ currentQuestionNumber }}</h1>
+        <h3 style="padding-left: 100px; padding-right: 100px">
+          {{ question.question }}
+        </h3>
+        <p class="buttons">
+          <template v-for="(option, index) in possibleAnswers">
+            <button :class="currentColor()" @click="submitResponse()" :disabled="selection !== index+1">{{ option }}</button>
+          </template>
+        </p>
+      </div>
+    </main>
+  </template>
 </template>

@@ -5,6 +5,7 @@ import { constants, setPrompt } from "@/utils/utils";
 
 const router = useRouter()
 
+const showTransition = ref(true);
 var prompt = ref("")
 
 function reset() {
@@ -13,7 +14,10 @@ function reset() {
 
 function submit() {
   setPrompt(prompt.value)
-  router.push("/question")
+
+  setTimeout(() => {
+    router.push("/question")
+  }, 500);
 }
 
 let handlerEnter: any;
@@ -24,6 +28,10 @@ onMounted(() => {
     }
   };
   window.addEventListener('keypress', handlerEnter);
+
+  setTimeout(() => {
+    showTransition.value = false;
+  }, 1000);
 });
 
 onBeforeUnmount(() => {
@@ -34,13 +42,19 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <button id="reset-button" class="btn yellow" @click="reset()">Reset</button>
-  <main id="screen-yellow">
-    <section>
-      <h1 class="yellow" style="max-width: 800px;">Submit a prompt to generate logs</h1>
-      <input v-model="prompt" type="text" autocomplete="off" placeholder="How long does it take an apple tree to grow?" autofocus>
-      <br>
-      <button class="btn btn-md yellow" @click="submit()" :disabled="prompt.length === 0">enter</button>
-    </section>
-  </main>
+  <video v-if="showTransition" class="bg-video" autoplay loop muted playsinline>
+    <source src="/transition.mp4#t=1" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <template v-else>
+    <button id="reset-button" class="btn yellow" @click="reset()">Reset</button>
+    <main id="screen-yellow">
+      <section>
+        <h1 class="yellow" style="max-width: 800px;">Submit a prompt to generate logs</h1>
+        <input v-model="prompt" type="text" autocomplete="off" placeholder="How long does it take an apple tree to grow?" autofocus>
+        <br>
+        <button class="btn btn-md yellow" @click="submit()" :disabled="prompt.length === 0">enter</button>
+      </section>
+    </main>
+  </template>
 </template>
