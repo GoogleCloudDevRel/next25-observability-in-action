@@ -5,6 +5,8 @@ import { constants, setPrompt } from "@/utils/utils";
 
 const router = useRouter()
 
+const showTransition = ref(true);
+
 function submit() {
   router.push("/instructions")
 }
@@ -17,6 +19,10 @@ onMounted(() => {
     }
   };
   window.addEventListener('keypress', handlerEnter);
+
+  setTimeout(() => {
+    showTransition.value = false;
+  }, 1000);
 });
 
 onBeforeUnmount(() => {
@@ -27,14 +33,12 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <video class="bg-video" autoplay loop muted playsinline>
+  <video v-if="showTransition" class="bg-video" autoplay loop muted playsinline>
+    <source src="/transition.mp4#t=1" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+  <video v-else class="bg-video" autoplay loop muted playsinline>
     <source src="/vid_splash.mp4" type="video/mp4">
     Your browser does not support the video tag.
   </video>
-  <!-- <main id="screen-splash"> -->
-    <!-- splash
-    <p class="buttons">
-      <button @click="submit()">ENTER<br>to begin</button>
-    </p> -->
-  <!-- </main> -->
 </template>
