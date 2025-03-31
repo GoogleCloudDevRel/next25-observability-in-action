@@ -63,6 +63,11 @@ function getAllQuestions() {
 
 function postResponse(qid: string, answer: string) {
     console.log("POST /answer " + qid + " " + answer)
+    for (let i in questions) {
+        if (questions[i].qid == qid) {
+            questions[i].tried_code = answer
+        }
+    }
     
     fetch("https://quiz-483420602709.us-central1.run.app/answer?" + new URLSearchParams({
         answer: answer,
@@ -74,12 +79,7 @@ function postResponse(qid: string, answer: string) {
     .then(response => response.json())
     .then(data => {
         console.log(data)
-        for (let i in questions) {
-            if (questions[i].qid == qid) {
-                questions[i].correct = data.correct
-                questions[i].tried_code = answer
-            }
-        }
+        
         return
     })
 }
