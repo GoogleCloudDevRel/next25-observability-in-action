@@ -4,6 +4,7 @@ import datetime
 import requests
 import json
 import asyncio
+from collections import defaultdict
 
 from quart import Quart, request, jsonify
 from quart_cors import cors
@@ -13,7 +14,8 @@ import google.oauth2.id_token
 from concurrent import futures
 from google.cloud import pubsub_v1
 from typing import Callable
-
+from google import genai
+from google.genai import types
 
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.asgi import OpenTelemetryMiddleware
@@ -49,15 +51,19 @@ fclient = firestore.Client(
   database="o11ydemo",
 )
 
+all_models =  ['FLASH','FLASHLITE','GEMMA3']
 publisher = pubsub_v1.PublisherClient()
 topic_name = f'projects/{PROJECT}/topics/logPromptsAndResponses'
-collection_ref = fclient.collection("questions")
-all_document_ids = [doc.id for doc in collection_ref.stream()]
+all_doc_ids = {}
+for collection in all_models: 
+    collection_ref = fclient.collection(collection)
+    all_doc_ids[collection] = [doc.id for doc in collection_ref.stream()]
 
 player_questions = {} 
 player_prompts = {}
+player_responses = defaultdict(list)
 
-def get_random_document_keys(collection_name, num_keys=3):
+def get_random_document_keys(collection_name, num_keys=1):
     """
     Retrieves a specified number of random document keys from a Firestore collection.
 
@@ -69,8 +75,8 @@ def get_random_document_keys(collection_name, num_keys=3):
         A list containing the randomly selected document keys, or an empty list if the collection is empty or an error occurs.
     """
 
-    num_keys = min(num_keys, len(all_document_ids))
-    random_keys = random.sample(all_document_ids, num_keys)
+    num_keys = min(num_keys, len(all_doc_ids[collection_name]))
+    random_keys = random.sample(all_doc_ids[collection_name], num_keys)
 
     return random_keys
 
@@ -155,12 +161,13 @@ def get_final():
   condition = "Nothing ran, congrats, you broke it"
   if sid in player_prompts:
     prompt = player_prompts[sid]
+    condition = random.choice(player_responses[sid])
 
   return jsonify(
     {
       "prompt": prompt,
       "condition": condition,
-      "answer": answer
+      "answer": condition["model"]
     }
   )
 
@@ -185,14 +192,16 @@ def score_question():
 async def call_llm():
   prompt = request.args.get("prompt")
   session_id = str(request.args.get("sid"))
-  player_questions[session_id] = get_random_document_keys("questions",3)
-  player_prompts[session_id] = prompt
+  player_questions[session_id] = []
   verbose_player_question = []
-  for question in player_questions[session_id]:
-    doc_ref = fclient.collection('questions').document(question)
+  for collection in all_models:
+    doc_id = get_random_document_keys(collection,1)[0]
+    doc_ref = fclient.collection(collection).document(doc_id)
     question_dict = doc_ref.get().to_dict()
-    question_dict["qid"] = question
+    question_dict["qid"] = doc_id
+    player_questions[session_id].append(doc_id)
     verbose_player_question.append(question_dict)
+  player_prompts[session_id] = prompt
 
   for llm_key in LLM_BACKENDS:
      asyncio.create_task(call_gemini(prompt, llm_key, session_id))
@@ -217,6 +226,7 @@ async def call_gemini(prompt,model,sid):
     "prompt": prompt,
     "response": str(resp.text)
   }
+  player_responses[sid].append(message_dict)
   publish(message_dict)
   logger.info("LLM responded", model=model, session_id=sid)
   return resp
@@ -257,6 +267,7 @@ async def call_gemma(prompt,sid):
     "prompt": prompt,
     "response": str(resp.text)
   }
+  player_responses[sid].append(message_dict)
   publish(message_dict)
   logger.info("LLM responded", model=model, session_id=sid)
   return resp
