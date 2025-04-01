@@ -224,17 +224,12 @@ def get_final():
 
 @app.route("/answer", methods=['POST'])
 def score_question():
-  local_fclient = firestore.Client(
-    project=PROJECT,
-    database="o11ydemo",
-  )
   got = request.args.get("answer", None)
   qid = request.args.get("qid", None)
   sid = str(request.args.get("sid", None))
-  dr = local_fclient.collection('questions').document(qid)
-  want = dr.get().get("code")
-  logger.info("scoring question", qid=dr.id, correct=(got == want))
-  answer_counter.add(1, attributes={'correct': (got == want), 'qid': dr.id})
+  want = player_questions[sid][1]
+  logger.info("scoring question", qid=qid, correct=(got == want))
+  answer_counter.add(1, attributes={'correct': (got == want), 'qid': qid})
   return jsonify({"correct": got == want,
                   "right_answer": want })
 
@@ -249,7 +244,7 @@ async def call_llm():
     doc_ref = fclient.collection(collection).document(doc_id)
     question_dict = doc_ref.get().to_dict()
     question_dict["qid"] = doc_id
-    player_questions[session_id].append(doc_id)
+    player_questions[session_id].append((doc_id,question_dict["code"]))
     verbose_player_question.append(question_dict)
   player_prompts[session_id] = prompt
 
