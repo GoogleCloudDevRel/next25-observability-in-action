@@ -31,7 +31,6 @@ from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
 from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
 
 from gcplogger import getJSONLogger
-import models
 
 logger = getJSONLogger()
 
@@ -41,15 +40,66 @@ app.asgi_app = OpenTelemetryMiddleware(app.asgi_app)
 
 PROJECT=os.getenv("GOOGLE_CLOUD_PROJECT")
 GEMMA_ENDPOINT=os.getenv("GEMMA_ENDPOINT")
-LLM_BACKENDS = {
-  "gemini-flash": models.getGemini(PROJECT, model="gemini-2.0-flash"),
-  "gemini-flash-lite": models.getGemini(PROJECT, model="gemini-2.0-flash-lite")
-}
 
 fclient = firestore.Client(
   project=PROJECT,
   database="o11ydemo",
 )
+
+class gemini_models:
+  def __init__(self,model):
+    self.model = model 
+    self.client = genai.Client(
+        vertexai=True,
+        project=PROJECT,
+        location="us-central1",
+    )
+    self.generate_content_config = types.GenerateContentConfig(
+      temperature = 0.2,
+      top_p = 0.8,
+      max_output_tokens = 1024,
+      response_modalities = ["TEXT"],
+      safety_settings = [types.SafetySetting(
+      category="HARM_CATEGORY_HATE_SPEECH",
+      threshold="OFF"
+      ),types.SafetySetting(
+      category="HARM_CATEGORY_DANGEROUS_CONTENT",
+      threshold="OFF"
+      ),types.SafetySetting(
+      category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
+      threshold="OFF"
+      ),types.SafetySetting(
+      category="HARM_CATEGORY_HARASSMENT",
+      threshold="OFF"
+      )],
+    )
+
+  def invoke(self, prompt):
+    contents = [
+        types.Content(
+        role="user",
+        parts=[
+            types.Part.from_text(text=prompt)
+        ]
+      )
+    ]
+    
+    full_chunks = ""
+    full_response = ""
+    for chunk in self.client.models.generate_content_stream(
+        model = self.model,
+        contents = contents,
+        config = self.generate_content_config,
+        ):
+        full_chunks = full_chunks + str(chunk)
+        full_response = full_response + chunk.text
+
+    return (full_chunks,full_response)
+
+LLM_BACKENDS = {
+  "gemini-flash": gemini_models("gemini-2.0-flash"),
+  "gemini-flash-lite": gemini_models("gemini-2.0-flash-lite")
+}
 
 all_models =  ['FLASH','FLASHLITE','GEMMA3']
 publisher = pubsub_v1.PublisherClient()
@@ -166,8 +216,8 @@ def get_final():
   return jsonify(
     {
       "prompt": prompt,
-      "condition": condition,
-      "answer": condition["model"]
+      "condition": condition[1],
+      "answer": condition[0]
     }
   )
 
@@ -224,9 +274,14 @@ async def call_gemini(prompt,model,sid):
     "session_id":sid,
     "model": model,
     "prompt": prompt,
-    "response": str(resp.text)
+    "response": resp[0]
   }
-  player_responses[sid].append(message_dict)
+
+  code = "FLASH"
+  if model == "gemini-flash-lite":
+    code = "FLASHLITE"
+    
+  player_responses[sid].append((code,resp[1]))
   publish(message_dict)
   logger.info("LLM responded", model=model, session_id=sid)
   return resp
@@ -248,7 +303,7 @@ async def call_gemma(prompt,sid):
     'Authorization': f"Bearer {id_token}"
   }
   resp = ""
-
+  full_text = ""
   with tracer.start_as_current_span(f"calling {model}") as span:
     span.set_attribute(key="model", value=model)
     starttime = datetime.datetime.now()
@@ -261,13 +316,19 @@ async def call_gemma(prompt,sid):
     logger.info("LLM called", model=model, latency=llmlatency, session_id=sid)
     llm_histogram.record(llmlatency, attributes={'model': model})
     llm_count.add(1, attributes={'model': model})
+  
+  resp_array = resp.text.split("\n")
+  resp_array.pop()
+  for resp_dict in resp_array:
+    resp_json = json.loads(str(resp_dict))
+    full_text = full_text + resp_json["response"]
   message_dict = {
     "session_id":sid,
     "model": model,
     "prompt": prompt,
     "response": str(resp.text)
   }
-  player_responses[sid].append(message_dict)
+  player_responses[sid].append(("GEMMA3",full_text))
   publish(message_dict)
   logger.info("LLM responded", model=model, session_id=sid)
   return resp
