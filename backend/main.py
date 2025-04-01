@@ -228,7 +228,7 @@ def score_question():
   qid = request.args.get("qid", None)
   sid = str(request.args.get("sid", None))
   want = player_questions[sid][qid]
-  logger.info("scoring question", qid=qid, correct=(got == want), model=want)
+  logger.info("scoring question", session_id=sid, qid=qid, correct=(got == want), model=want, answer=got)
   answer_counter.add(1, attributes={'correct': (got == want), 'qid': qid})
   return jsonify({"correct": got == want,
                   "right_answer": want })
