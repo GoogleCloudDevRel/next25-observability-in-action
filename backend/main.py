@@ -227,8 +227,8 @@ def score_question():
   got = request.args.get("answer", None)
   qid = request.args.get("qid", None)
   sid = str(request.args.get("sid", None))
-  want = player_questions[sid][1]
-  logger.info("scoring question", qid=qid, correct=(got == want))
+  want = player_questions[sid][qid]
+  logger.info("scoring question", qid=qid, correct=(got == want), model=want)
   answer_counter.add(1, attributes={'correct': (got == want), 'qid': qid})
   return jsonify({"correct": got == want,
                   "right_answer": want })
@@ -237,14 +237,14 @@ def score_question():
 async def call_llm():
   prompt = request.args.get("prompt")
   session_id = str(request.args.get("sid"))
-  player_questions[session_id] = []
+  player_questions[session_id] = {}
   verbose_player_question = []
   for collection in all_models:
     doc_id = get_random_document_keys(collection,1)[0]
     doc_ref = fclient.collection(collection).document(doc_id)
     question_dict = doc_ref.get().to_dict()
     question_dict["qid"] = doc_id
-    player_questions[session_id].append((doc_id,question_dict["code"]))
+    player_questions[session_id][doc_id] = question_dict["code"]
     verbose_player_question.append(question_dict)
   player_prompts[session_id] = prompt
 
