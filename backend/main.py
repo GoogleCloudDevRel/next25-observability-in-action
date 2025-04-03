@@ -269,7 +269,8 @@ async def call_gemini(prompt,model,sid):
     "session_id":sid,
     "model": model,
     "prompt": prompt,
-    "response": resp[0]
+    "full_response": resp[0],
+    "formatted_response": resp[1]
   }
 
   code = "FLASH"
@@ -321,7 +322,8 @@ async def call_gemma(prompt,sid):
     "session_id":sid,
     "model": model,
     "prompt": prompt,
-    "response": str(resp.text)
+    "full_response": str(resp.text),
+    "formatted_response": full_text
   }
   player_responses[sid].append(("GEMMA3",full_text))
   publish(message_dict)
