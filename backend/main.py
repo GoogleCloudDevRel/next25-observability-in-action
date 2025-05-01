@@ -221,7 +221,6 @@ def get_final():
     }
   )
 
-
 @app.route("/answer", methods=['POST'])
 def score_question():
   got = request.args.get("answer", None)
@@ -282,7 +281,6 @@ async def call_gemini(prompt,model,sid):
   logger.info("LLM responded", model=model, session_id=sid)
   return resp
 
-
 async def call_gemma(prompt,sid):
   url = f'{GEMMA_ENDPOINT}/api/generate'
   data = {
@@ -330,11 +328,9 @@ async def call_gemma(prompt,sid):
   logger.info("LLM responded", model=model, session_id=sid)
   return resp
 
-
 @app.route("/llmz")
 def debug_list_backends():
   return jsonify(list(LLM_BACKENDS.keys()))
-
 
 if __name__ == "__main__":
   app.run()

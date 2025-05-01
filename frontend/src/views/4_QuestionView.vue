@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { RouterLink, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { constants, getQuestion, postResponse } from "@/utils/utils";
 
