@@ -122,7 +122,6 @@ header {
 .yellow {
   border-color: #F4B400;
   color: #F4B400;
-  /* box-shadow: 0px 0px 4.7px 0px #F4B400, 0px 1px 12.6px 0px rgba(244, 180, 0, 0.60), 0px 0px 5.4px 0px rgba(244, 180, 0, 0.40), 0px 0px 154.5px 0px rgba(244, 180, 0, 0.60); */
   text-shadow: 0px 0px 15px rgba(244, 180, 0, 0.60);
 }
 
@@ -201,5 +200,4 @@ input {
 
 h4 b {
   text-decoration: underline;
-  /* color: white; */
 }

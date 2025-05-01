@@ -1,36 +1,56 @@
-This is not an officially supported Google product. This project is not
-eligible for the [Google Open Source Software Vulnerability Rewards
-Program](https://bughunters.google.com/open-source-security).
+> [!WARNING]
+> This is not an officially supported Google product. This project is not
+> eligible for the [Google Open Source Software Vulnerability Rewards
+> Program](https://bughunters.google.com/open-source-security).
+> 
+> This project is intended for demonstration purposes only. It is not
+> intended for use in a production environment.
+> 
+> You can review [Google Cloud terms of service
+> here](https://console.cloud.google.com/tos?id=cloud).
 
-This project is intended for demonstration purposes only. It is not
-intended for use in a production environment.
+# Demo: Observability in Action
 
-You can review [Google Cloud terms of service
-here](https://console.cloud.google.com/tos?id=cloud).
+This demo was showcased on the show floor at Google Cloud Next 2025.
 
-
-# Observability Demo App
-
-This app is intended for deployment to Cloud Run, and  uses a firestore database
-to ask some trivia questions.
-
-It also illustrates the use of logging, and opentelemetry to produce
-observability data streams.
-
+It illustrates the use of metrics and logging to produce observability data streams.
+This demo leverages Cloud Run, Vertex AI, BigQuery, Firestore, Cloud Logging, Cloud Monitoring, and Cloud Trace.
 
 ## Firestore data
 
-The app assumes a firestore database called `o11ydemo`, an a collection called `questions`. Question documents should have the following structure:
+The app assumes a Firestore database called `o11ydemo`, an a collection called `questions`. Question documents should have the following structure:
 
-- `q`: the contents of the question, for onscreen display
-- `answer`: the expected correct answer
-- `options`: (optional) a set of possible answers to the question. there should be a maximum of 3 for UI display.
+- `question`: The content of the question.
+- `constraint`: The constraint of the question.
+- `code`: The answer, one of "FLASH", "FLASHLITE", or "GEMMA".
+- `full`: The full name of the answer (e.g. "Gemini 2.0 Flash").
 
 ## Backend API
 
 The backend for the app has the following URL routes:
 
-- `/question` - gets a random question from the question database
-- `/question/<id>` - Gets the question with the specified ID. If send with an
-    `answer` query param or via HTTP POST, it determines if the supplied answer is
-    correct.
+- `POST /prompt`: Sends the user prompt and receives the questions. (sid, prompt)
+- `POST /answer`: Sends the user's answer to one particular question. (sid, qid, answer)
+- `GET /final`: Sends the flag that the user has completed the demo. (sid)
+
+## Running the frontend
+
+The frontend is located inside of the `frontend/` directory.
+
+### Installing dependencies
+
+```sh
+npm install
+```
+
+### Running the development server (supports hot-reload)
+
+```sh
+npm run dev
+```
+
+### Building the production server
+
+```sh
+npm run build
+```

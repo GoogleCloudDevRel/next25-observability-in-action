@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { RouterLink, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { constants, setPrompt } from "@/utils/utils";
+import { setPrompt } from "@/utils/utils";
 
 const router = useRouter()
 

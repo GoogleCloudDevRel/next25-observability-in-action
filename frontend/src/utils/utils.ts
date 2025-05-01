@@ -1,4 +1,5 @@
 var constants = {
+    backendURL: "https://quiz-483420602709.us-central1.run.app",
     demoTitle: "Observability in Action",
     demoSubtitle: "Learn with logs",
     numQuestions: 3
@@ -22,7 +23,7 @@ function setPrompt(text: string) {
     console.log("Set sessionID to " + sessionId)
     console.log("Set prompt to " + prompt)
 
-    fetch("https://quiz-483420602709.us-central1.run.app/prompt?" + new URLSearchParams({
+    fetch(constants.backendURL + "/prompt?" + new URLSearchParams({
         prompt: prompt,
         sid: sessionId
     }), {
@@ -45,16 +46,6 @@ function getQuestion() {
     console.log("getting question...")
     console.log(q)
     return q
-    // console.log("GET /question " + sessionId)
-
-    // return fetch("https://quiz-483420602709.us-central1.run.app/question?" + new URLSearchParams({
-    //     sid: sessionId
-    // }))
-    // .then(response => response.json())
-    // .then(data => {
-    //     console.log(data)
-    //     return data
-    // })
 }
 
 function getAllQuestions() {
@@ -69,7 +60,7 @@ function postResponse(qid: string, answer: string) {
         }
     }
     
-    fetch("https://quiz-483420602709.us-central1.run.app/answer?" + new URLSearchParams({
+    fetch(constants.backendURL + "/answer?" + new URLSearchParams({
         answer: answer,
         qid: qid,
         sid: sessionId
@@ -87,7 +78,7 @@ function postResponse(qid: string, answer: string) {
 function finalize() {
     console.log("GET /final")
 
-    fetch("https://quiz-483420602709.us-central1.run.app/final?" + new URLSearchParams({
+    fetch(constants.backendURL + "/final?" + new URLSearchParams({
         sid: sessionId
     }))
     .then(response => response.json())
